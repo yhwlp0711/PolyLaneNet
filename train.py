@@ -9,6 +9,8 @@ from time import time
 
 import numpy as np
 import torch
+import torch.backends.cudnn
+import torch.utils.data
 
 from test import test
 from lib.config import Config
@@ -113,8 +115,8 @@ def save_train_state(path, model, optimizer, lr_scheduler, epoch):
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Train PolyLaneNet")
-    parser.add_argument("--exp_name", default="default", help="Experiment name", required=True)
-    parser.add_argument("--cfg", default="config.yaml", help="Config file", required=True)
+    parser.add_argument("--exp_name", default="tusimple", help="Experiment name")
+    parser.add_argument("--cfg", default="./cfgs/tusimple.yaml", help="Config file")
     parser.add_argument("--resume", action="store_true", help="Resume training")
     parser.add_argument("--validate", action="store_true", help="Validate model during training")
     parser.add_argument("--deterministic",

@@ -1,10 +1,10 @@
 # Training settings
-exps_dir: 'experiments'
-iter_log_interval: 1
-iter_time_window: 100
-model_save_interval: 1
-seed: 1
-backup:
+exps_dir: 'experiments' # Path to the root for the experiments directory (not only the one you will run)
+iter_log_interval: 1 # Log training iteration every N iterations
+iter_time_window: 100 # Moving average iterations window for the printed loss metric
+model_save_interval: 1 # Save model every N epochs
+seed: 0 # Seed for randomness
+backup: drive:polylanenet-experiments # The experiment directory will be automatically uploaded using rclone after the training ends. Leave empty if you do not want this.
 model:
   name: PolyRegression
   parameters:
@@ -12,7 +12,6 @@ model:
     pretrained: true
     backbone: 'efficientnet-b0'
     pred_category: false
-    curriculum_steps: [0, 0, 0, 0]
 loss_parameters:
   conf_weight: 1
   lower_weight: 1
@@ -32,7 +31,7 @@ lr_scheduler:
 
 # Testing settings
 test_parameters:
-  conf_threshold: 0.5
+  conf_threshold: 0.5 # Set predictions with confidence lower than this to 0 (i.e., set as invalid for the metrics)
 
 # Dataset settings
 datasets:
@@ -44,7 +43,7 @@ datasets:
       img_size: [360, 640]
       normalize: true
       aug_chance: 0.9090909090909091 # 10/11
-      augmentations:
+      augmentations: # ImgAug augmentations
        - name: Affine
          parameters:
            rotate: !!python/tuple [-10, 10]
@@ -55,16 +54,15 @@ datasets:
          parameters:
            width: 1152
            height: 648
-      root: "../data_lane-regression/datasets/tusimple"
+      root: "./dataset/TUSimple/train_set/" # Dataset root
 
   test: &test
     type: LaneDataset
     parameters:
       dataset: tusimple
-      split: val
-      max_lanes: 5
+      split: test
       img_size: [360, 640]
-      root: "../data_lane-regression/datasets/tusimple"
+      root: "./dataset/TUSimple/test_set/"
       normalize: true
       augmentations: []
 
