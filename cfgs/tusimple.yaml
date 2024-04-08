@@ -54,7 +54,7 @@ datasets:
          parameters:
            width: 1152
            height: 648
-      root: "./dataset/TUSimple/train_set/" # Dataset root
+      root: "../dataset/TUSimple/train_set/" # Dataset root
 
   test: &test
     type: LaneDataset
@@ -62,7 +62,7 @@ datasets:
       dataset: tusimple
       split: test
       img_size: [360, 640]
-      root: "./dataset/TUSimple/test_set/"
+      root: "../dataset/TUSimple/test_set/"
       normalize: true
       augmentations: []
 
