@@ -127,6 +127,7 @@ def convert_tusimple_format(json_gt):
 
 
 def eval_json(pred_file, gt_file, json_type=None, debug=False):
+    # 封装
     try:
         json_pred = [json.loads(line) for line in open(pred_file).readlines()]
     except BaseException as e:
