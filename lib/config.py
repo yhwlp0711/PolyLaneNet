@@ -26,6 +26,7 @@ class Config(object):
                        self.config['datasets'][split]['type'])(**self.config['datasets'][split]['parameters'])
 
     def get_model(self):
+         # 获取模型
         name = self.config['model']['name']
         parameters = self.config['model']['parameters']
         return getattr(models, name)(**parameters)
@@ -35,10 +36,12 @@ class Config(object):
                                                                       **self.config['optimizer']['parameters'])
 
     def get_lr_scheduler(self, optimizer):
+        # 获取学习率调度器
         return getattr(torch.optim.lr_scheduler,
                        self.config['lr_scheduler']['name'])(optimizer, **self.config['lr_scheduler']['parameters'])
 
     def get_loss_parameters(self):
+        # 获取loss参数
         return self.config['loss_parameters']
 
     def get_test_parameters(self):

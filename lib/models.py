@@ -7,18 +7,25 @@ from efficientnet_pytorch import EfficientNet
 class OutputLayer(nn.Module):
     def __init__(self, fc, num_extra):
         super(OutputLayer, self).__init__()
+        # 全连接层
         self.regular_outputs_layer = fc
         self.num_extra = num_extra
         if num_extra > 0:
+            # 创建一个额外全连接层
+            # 输入 fc.in_features
+            # 输出 num_exra
             self.extra_outputs_layer = nn.Linear(fc.in_features, num_extra)
 
     def forward(self, x):
+        # 常规结果
         regular_outputs = self.regular_outputs_layer(x)
+        # 额外结果
         if self.num_extra > 0:
             extra_outputs = self.extra_outputs_layer(x)
         else:
             extra_outputs = None
 
+        # 返回 常规结果、额外结果
         return regular_outputs, extra_outputs
 
 
@@ -31,13 +38,25 @@ class PolyRegression(nn.Module):
                  extra_outputs=0,
                  share_top_y=True,
                  pred_category=False):
+        # num_outputs: 输出的数量。
+        # backbone: 使用的主干模型。
+        # pretrained: 是否使用预训练的主干模型。
+        # curriculum_steps: 训练中使用的课程步骤（如果有）。
+        # extra_outputs: 额外输出的数量。
+        # share_top_y: 是否共享顶部 Y 坐标。
+        # pred_category: 是否进行类别预测。
         super(PolyRegression, self).__init__()
         if 'efficientnet' in backbone:
             if pretrained:
                 self.model = EfficientNet.from_pretrained(backbone, num_classes=num_outputs)
             else:
                 self.model = EfficientNet.from_name(backbone, override_params={'num_classes': num_outputs})
+            # 自定义全连接层
             self.model._fc = OutputLayer(self.model._fc, extra_outputs)
+        # 根据不同的 ResNet 模型设置不同的预训练权重
+        # 为了适应新的输出要求而修改最后一层全连接层
+        # 替换全连接层为一个新的具有相同输入特征维度但输出特征维度为 num_outputs 的线性层，
+        # 并通过 OutputLayer 添加额外的输出
         elif backbone == 'resnet34':
             self.model = resnet34(pretrained=pretrained)
             self.model.fc = nn.Linear(self.model.fc.in_features, num_outputs)
@@ -60,18 +79,28 @@ class PolyRegression(nn.Module):
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x, epoch=None, **kwargs):
+        # 调用前向传播
         output, extra_outputs = self.model(x, **kwargs)
+        # 让模型在训练的早期阶段集中精力学习较简单的任务或特征
+        # 然后逐步引入更复杂的任务或特征
         for i in range(len(self.curriculum_steps)):
             if epoch is not None and epoch < self.curriculum_steps[i]:
                 output[:, -len(self.curriculum_steps) + i] = 0
         return output, extra_outputs
 
     def decode(self, all_outputs, labels, conf_threshold=0.5):
+        # 解码函数 解析模型输出得到结果
         outputs, extra_outputs = all_outputs
         if extra_outputs is not None:
+            # ？
             extra_outputs = extra_outputs.reshape(labels.shape[0], 5, -1)
+            # 沿着第三个维度计算 找到最大值的索引
+            # (x,y,z) 返回 (x,y)
             extra_outputs = extra_outputs.argmax(dim=2)
+        # 置信度、上界、下界、系数
         outputs = outputs.reshape(len(outputs), -1, 7)  # score + upper + lower + 4 coeffs = 7
+        # 对置信度进行 Sigmoid 处理
+        # 过滤低置信度的结果
         outputs[:, :, 0] = self.sigmoid(outputs[:, :, 0])
         outputs[outputs[:, :, 0] < conf_threshold] = 0
 
@@ -89,10 +118,22 @@ class PolyRegression(nn.Module):
              cls_weight=1,
              poly_weight=300,
              threshold=15 / 720.):
+        # outputs: 模型的输出，包括车道线的预测结果和额外输出（如果有的话）。
+        # target: 真实的标签，包括车道线的真实位置和其他信息。
+        # conf_weight: 置信度损失的权重。
+        # lower_weight: 下界位置损失的权重。
+        # upper_weight: 上界位置损失的权重。
+        # cls_weight: 类别损失的权重。
+        # poly_weight: 多项式系数损失的权重。
+        # threshold: 用于控制车道线预测的阈值，低于这个阈值的预测会被忽略。
         pred, extra_outputs = outputs
+        # 二元交叉熵损失
         bce = nn.BCELoss()
+        # 均方误差损失
         mse = nn.MSELoss()
         s = nn.Sigmoid()
+        # 阈值处理函数
+        # 小于置 0 大于不变
         threshold = nn.Threshold(threshold**2, 0.)
         pred = pred.reshape(-1, target.shape[1], 1 + 2 + 4)
         target_categories, pred_confs = target[:, :, 0].reshape((-1, 1)), s(pred[:, :, 0]).reshape((-1, 1))
