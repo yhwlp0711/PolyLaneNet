@@ -1,10 +1,10 @@
 # Training settings
 exps_dir: 'experiments' # Path to the root for the experiments directory (not only the one you will run)
-iter_log_interval: 1 # Log training iteration every N iterations
+iter_log_interval: 50 # Log training iteration every N iterations
 iter_time_window: 100 # Moving average iterations window for the printed loss metric
-model_save_interval: 1 # Save model every N epochs
+model_save_interval: 10 # Save model every N epochs
 seed: 0 # Seed for randomness
-backup: drive:polylanenet-experiments # The experiment directory will be automatically uploaded using rclone after the training ends. Leave empty if you do not want this.
+backup: None # The experiment directory will be automatically uploaded using rclone after the training ends. Leave empty if you do not want this.
 model:
   name: PolyRegression
   parameters:
@@ -18,8 +18,8 @@ loss_parameters:
   upper_weight: 1
   cls_weight: 0
   poly_weight: 300
-batch_size: 16
-epochs: 2695
+batch_size: 8
+epochs: 100
 optimizer:
   name: Adam
   parameters:

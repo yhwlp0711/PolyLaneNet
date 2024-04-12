@@ -79,9 +79,9 @@ def test(model, test_loader, evaluator, exp_root, cfg, view, epoch, max_batches=
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Lane regression")
-    parser.add_argument("--exp_name", default="default", help="Experiment name", required=True)
-    parser.add_argument("--cfg", default="config.yaml", help="Config file", required=True)
-    parser.add_argument("--epoch", type=int, default=None, help="Epoch to test the model on")
+    parser.add_argument("--exp_name", default="tusimple", help="Experiment name")
+    parser.add_argument("--cfg", default="./cfgs/tusimple.yaml", help="Config file")
+    parser.add_argument("--epoch", type=int, default=100, help="Epoch to test the model on")
     parser.add_argument("--batch_size", type=int, help="Number of images per batch")
     parser.add_argument("--view", action="store_true", help="Show predictions")
 
@@ -89,6 +89,7 @@ def parse_args():
 
 
 def get_code_state():
+    # 获取代码状态
     state = "Git hash: {}".format(
         subprocess.run(['git', 'rev-parse', 'HEAD'], stdout=subprocess.PIPE).stdout.decode('utf-8'))
     state += '\n*************\nGit diff:\n*************\n'
@@ -98,6 +99,7 @@ def get_code_state():
 
 
 def log_on_exception(exc_type, exc_value, exc_traceback):
+    # 处理未捕获异常
     logging.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
 
 
@@ -106,11 +108,13 @@ if __name__ == "__main__":
     cfg = Config(args.cfg)
 
     # Set up seeds
+    # 设置种子
     torch.manual_seed(cfg['seed'])
     np.random.seed(cfg['seed'])
     random.seed(cfg['seed'])
 
     # Set up logging
+    # 设置日志
     exp_root = os.path.join(cfg['exps_dir'], os.path.basename(os.path.normpath(args.exp_name)))
     logging.basicConfig(
         format="[%(asctime)s] [%(levelname)s] %(message)s",
@@ -121,24 +125,30 @@ if __name__ == "__main__":
         ],
     )
 
+    # 异常处理
     sys.excepthook = log_on_exception
 
+    # 日志
     logging.info("Experiment name: {}".format(args.exp_name))
     logging.info("Config:\n" + str(cfg))
     logging.info("Args:\n" + str(args))
 
     # Device configuration
+    # 设置 device
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Hyper parameters
+    # 获取参数
     num_epochs = cfg["epochs"]
     batch_size = cfg["batch_size"] if args.batch_size is None else args.batch_size
 
     # Model
+    # 获取模型
     model = cfg.get_model().to(device)
     test_epoch = args.epoch
 
     # Get data set
+    # 获取数据集
     test_dataset = cfg.get_dataset("test")
 
     test_loader = torch.utils.data.DataLoader(dataset=test_dataset,
@@ -146,8 +156,10 @@ if __name__ == "__main__":
                                               shuffle=False,
                                               num_workers=8)
     # Eval results
+    # 初始化验证器
     evaluator = Evaluator(test_loader.dataset, exp_root)
 
+    # 设置日志
     logging.basicConfig(
         format="[%(asctime)s] [%(levelname)s] %(message)s",
         level=logging.INFO,
@@ -162,6 +174,8 @@ if __name__ == "__main__":
 
     evaluator.exp_name = args.exp_name
 
+    # 验证并返回结果
     eval_str, _ = evaluator.eval(label='{}_{}'.format(os.path.basename(args.exp_name), test_epoch))
 
+    # 打印结果
     logging.info(eval_str)

@@ -135,7 +135,9 @@ class PolyRegression(nn.Module):
         # 阈值处理函数
         # 小于置 0 大于不变
         threshold = nn.Threshold(threshold**2, 0.)
+        # 获取预测结果
         pred = pred.reshape(-1, target.shape[1], 1 + 2 + 4)
+        # 提取各结果
         target_categories, pred_confs = target[:, :, 0].reshape((-1, 1)), s(pred[:, :, 0]).reshape((-1, 1))
         target_uppers, pred_uppers = target[:, :, 2].reshape((-1, 1)), pred[:, :, 2].reshape((-1, 1))
         target_points, pred_polys = target[:, :, 3:].reshape((-1, target.shape[2] - 3)), pred[:, :, 3:].reshape(-1, 4)
@@ -144,24 +146,37 @@ class PolyRegression(nn.Module):
         if self.share_top_y:
             # inexistent lanes have -1e-5 as lower
             # i'm just setting it to a high value here so that the .min below works fine
+            # 小于 0 则置为 1
             target_lowers[target_lowers < 0] = 1
+            # 每行的最小值复制到每行的所有元素中
             target_lowers[...] = target_lowers.min(dim=1, keepdim=True)[0]
+            # pred_lowers[:, 0] 选择了 pred_lowers 的第一列
+            # .reshape(-1, 1) 将选定的列重塑为单列向量
+            # .expand(pred.shape[0], pred.shape[1]) 扩展该向量，使其具有与 pred 相同的行数和列数
+            # pred_lowers[...] 是对整个数组的切片引用
+            # 将 pred_lowers 的第一列元素复制到每行的所有元素中
             pred_lowers[...] = pred_lowers[:, 0].reshape(-1, 1).expand(pred.shape[0], pred.shape[1])
 
         target_lowers = target_lowers.reshape((-1, 1))
         pred_lowers = pred_lowers.reshape((-1, 1))
 
+        # 每个元素等于对应车道的可信度
         target_confs = (target_categories > 0).float()
+        # 筛选出具有可信度车道的索引
         valid_lanes_idx = target_confs == 1
+        # 二维->一维
         valid_lanes_idx_flat = valid_lanes_idx.reshape(-1)
+        # 上界损失、下界损失
         lower_loss = mse(target_lowers[valid_lanes_idx], pred_lowers[valid_lanes_idx])
         upper_loss = mse(target_uppers[valid_lanes_idx], pred_uppers[valid_lanes_idx])
 
         # classification loss
-        if self.pred_category and self.extra_outputs > 0:
+        if self.pred_category and self.extra_outputs > 0: # pred_category: default = false
+            # 交叉熵损失
             ce = nn.CrossEntropyLoss()
             pred_categories = extra_outputs.reshape(target.shape[0] * target.shape[1], -1)
             target_categories = target_categories.reshape(pred_categories.shape[:-1]).long()
+            # 筛选
             pred_categories = pred_categories[target_categories > 0]
             target_categories = target_categories[target_categories > 0]
             cls_loss = ce(pred_categories, target_categories - 1)
@@ -169,29 +184,50 @@ class PolyRegression(nn.Module):
             cls_loss = 0
 
         # poly loss calc
+        # 提取 x
+        # valid_lanes_idx_flat 为 bool 掩码
         target_xs = target_points[valid_lanes_idx_flat, :target_points.shape[1] // 2]
+        # 提取 y 再转置
         ys = target_points[valid_lanes_idx_flat, target_points.shape[1] // 2:].t()
+        # bool 掩码
         valid_xs = target_xs >= 0
+        # 筛选有效值
         pred_polys = pred_polys[valid_lanes_idx_flat]
+        # 根据 ys 和多项式系数计算 xs 并转置
         pred_xs = pred_polys[:, 0] * ys**3 + pred_polys[:, 1] * ys**2 + pred_polys[:, 2] * ys + pred_polys[:, 3]
         pred_xs.t_()
+        # 计算权重 有效 xs 求和得到一个标量 X
+        # 有效 xs 按行求和得到一个 tensor
+        # 使用 X 逐一除以 tensor 得到新的 tensor
+        # 开方
         weights = (torch.sum(valid_xs, dtype=torch.float32) / torch.sum(valid_xs, dim=1, dtype=torch.float32))**0.5
-        pred_xs = (pred_xs.t_() *
-                   weights).t()  # without this, lanes with more points would have more weight on the cost function
+        # 加权处理
+        # without this, lanes with more points would have more weight on the cost function
+        # 如果没有这个步骤，拥有更多点的车道线会在损失函数中拥有更大的权重
+        # 确保每条车道线对损失函数的贡献大致相等，而不会被其点的数量所主导
+        pred_xs = (pred_xs.t_() * weights).t()
         target_xs = (target_xs.t_() * weights).t()
-        poly_loss = mse(pred_xs[valid_xs], target_xs[valid_xs]) / valid_lanes_idx.sum()
+
+        # poly_loss = mse(pred_xs[valid_xs], target_xs[valid_xs]) / valid_lanes_idx.sum()
+
+        # 类似均方误差 计算后根据阈值进行处理
+        # (valid_lanes_idx.sum() * valid_xs.sum()) 为有效车道数 * 有效车道线对的点的总数量
         poly_loss = threshold(
             (pred_xs[valid_xs] - target_xs[valid_xs])**2).sum() / (valid_lanes_idx.sum() * valid_xs.sum())
 
         # applying weights to partial losses
+        # 加权
         poly_loss = poly_loss * poly_weight
         lower_loss = lower_loss * lower_weight
         upper_loss = upper_loss * upper_weight
         cls_loss = cls_loss * cls_weight
+        # 计算置信度损失（二元交叉熵损失）再加权
         conf_loss = bce(pred_confs, target_confs) * conf_weight
 
+        # loss
         loss = conf_loss + lower_loss + upper_loss + poly_loss + cls_loss
 
+        # 返回 loss 和 各部分损失的字典
         return loss, {
             'conf': conf_loss,
             'lower': lower_loss,

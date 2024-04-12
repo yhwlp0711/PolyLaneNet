@@ -137,6 +137,11 @@ class TuSimple(object):
             # 预测转tusimple格式
             line = self.pred2tusimpleformat(idx, predictions[idx], runtimes[idx])
             lines.append(line)
+        # 获取文件所在的目录
+        directory = os.path.dirname(filename)
+        # 如果目录不存在，则创建它
+        if not os.path.exists(directory):
+            os.makedirs(directory)
         with open(filename, 'w') as output_file:
             output_file.write('\n'.join(lines))
 
