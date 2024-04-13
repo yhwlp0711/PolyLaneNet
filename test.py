@@ -81,8 +81,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Lane regression")
     parser.add_argument("--exp_name", default="tusimple", help="Experiment name")
     parser.add_argument("--cfg", default="./cfgs/tusimple.yaml", help="Config file")
-    parser.add_argument("--epoch", type=int, default=100, help="Epoch to test the model on")
-    parser.add_argument("--batch_size", type=int, help="Number of images per batch")
+    parser.add_argument("--epoch", type=int, default=990, help="Epoch to test the model on")
+    parser.add_argument("--batch_size", type=int, default=8,help="Number of images per batch")
     parser.add_argument("--view", action="store_true", help="Show predictions")
 
     return parser.parse_args()
