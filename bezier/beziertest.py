@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-from 贝塞尔曲线 import bezier
+from bezier import bezier
 
 
 points = np.asarray([[100, 315], [200, 380], [300, 495], [400, 660], [500, 875]])

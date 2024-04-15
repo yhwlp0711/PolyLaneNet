@@ -151,7 +151,7 @@ def parse_args():
     # deterministic: 是否设置 cudnn.deterministic = True 和 cudnn.benchmark = False，以确保训练过程的确定性
     parser = argparse.ArgumentParser(description="Train PolyLaneNet")
     parser.add_argument("--exp_name", default="tusimple", help="Experiment name")
-    parser.add_argument("--cfg", default="./cfgs/tusimple.yaml", help="Config file")
+    parser.add_argument("--cfg", default="./cfgs/tusimple_bezier.yaml", help="Config file")
     parser.add_argument("--resume", action="store_true", help="Resume training")
     parser.add_argument("--validate", action="store_true", help="Validate model during training")
     parser.add_argument("--deterministic",

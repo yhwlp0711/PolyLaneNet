@@ -122,7 +122,7 @@ This script's options are:
 #### Testing
 After training, run the `test.py` script to get the metrics:
 ```bash
-python test.py --exp_name tusimple --cfg config.yaml --epoch 2695
+python beziertest.py --exp_name tusimple --cfg config.yaml --epoch 2695
 ```
 This script's options are:
 ```
@@ -158,7 +158,7 @@ If you just want to reproduce the exact reported metrics by testing the model, y
 Then, run:
 
 ```bash
-python test.py --exp_name $exp_name --cfg $exps_dir/$exp_name/config.yaml --epoch 2695
+python beziertest.py --exp_name $exp_name --cfg $exps_dir/$exp_name/config.yaml --epoch 2695
 ```
 Replacing `$exp_name` with the name of the directory you downloaded (the name of the experiment) and `$exps_dir` with the `exps_dir` value you defined inside the `config.yaml` file. The script will look for a directory named `$exps_dir/$exp_name/models` to load the model.
 

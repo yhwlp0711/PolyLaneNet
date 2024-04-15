@@ -3,6 +3,8 @@ import torch.nn as nn
 from torchvision.models import resnet34, resnet50, resnet101
 from efficientnet_pytorch import EfficientNet
 
+from .bezier import cal_list
+
 
 class OutputLayer(nn.Module):
     def __init__(self, fc, num_extra):
@@ -110,8 +112,8 @@ class PolyRegression(nn.Module):
         return outputs, extra_outputs
 
     def loss(self,
-             outputs,
-             target,
+             outputs, # batchsize * 35 (lanenums=5 * (1 + 2 + 4))
+             target, # batchsize * lanenums=5 * 115 每条车道115个点？
              conf_weight=1,
              lower_weight=1,
              upper_weight=1,
@@ -136,10 +138,12 @@ class PolyRegression(nn.Module):
         # 小于置 0 大于不变
         threshold = nn.Threshold(threshold**2, 0.)
         # 获取预测结果
-        pred = pred.reshape(-1, target.shape[1], 1 + 2 + 4)
+        pred = pred.reshape(-1, target.shape[1], 1 + 2 + 4) # batchsize * lanenums=5 * 7
         # 提取各结果
+        # batchsize * lanenums=5 再 reshape (batchsize * lanenums=5) * 1 每条车道线一个数据
         target_categories, pred_confs = target[:, :, 0].reshape((-1, 1)), s(pred[:, :, 0]).reshape((-1, 1))
         target_uppers, pred_uppers = target[:, :, 2].reshape((-1, 1)), pred[:, :, 2].reshape((-1, 1))
+        # 前者为 (batchsize * lanenums) * pointnums 后者为 (batchsize * lanenums) * 7
         target_points, pred_polys = target[:, :, 3:].reshape((-1, target.shape[2] - 3)), pred[:, :, 3:].reshape(-1, 4)
         target_lowers, pred_lowers = target[:, :, 1], pred[:, :, 1]
 
@@ -162,11 +166,11 @@ class PolyRegression(nn.Module):
 
         # 每个元素等于对应车道的可信度
         target_confs = (target_categories > 0).float()
-        # 筛选出具有可信度车道的索引
+        # 筛选出具有可信度车道的索引 即有效车道
         valid_lanes_idx = target_confs == 1
         # 二维->一维
         valid_lanes_idx_flat = valid_lanes_idx.reshape(-1)
-        # 上界损失、下界损失
+        # 上界损失、下界损失 标量
         lower_loss = mse(target_lowers[valid_lanes_idx], pred_lowers[valid_lanes_idx])
         upper_loss = mse(target_uppers[valid_lanes_idx], pred_uppers[valid_lanes_idx])
 
@@ -185,17 +189,26 @@ class PolyRegression(nn.Module):
 
         # poly loss calc
         # 提取 x
-        # valid_lanes_idx_flat 为 bool 掩码
+        # valid_lanes_idx_flat 为 bool 掩码  有效车道的个数(从 batchsize * lanenums 中筛选) * 有效点的数量
         target_xs = target_points[valid_lanes_idx_flat, :target_points.shape[1] // 2]
         # 提取 y 再转置
+        # 多项式 ys
         ys = target_points[valid_lanes_idx_flat, target_points.shape[1] // 2:].t()
-        # bool 掩码
+        # 贝塞尔 ys
+        # ys = target_points[valid_lanes_idx_flat, target_points.shape[1] // 2:]
+        # bool 掩码  再计算 x > 0 的掩码
         valid_xs = target_xs >= 0
-        # 筛选有效值
+        # 筛选有效值 pred_polys (batchsize * lanenums) * 4
         pred_polys = pred_polys[valid_lanes_idx_flat]
-        # 根据 ys 和多项式系数计算 xs 并转置
+
+
+        # 根据 ys 和多项式系数计算 xs 并转置 计算预测 x
+        # 改曲线改这里  pred_x = cal(pred_polys, y)
         pred_xs = pred_polys[:, 0] * ys**3 + pred_polys[:, 1] * ys**2 + pred_polys[:, 2] * ys + pred_polys[:, 3]
         pred_xs.t_()
+        # 贝塞尔曲线
+        # pred_xs = cal_list(ys, target_xs, valid_xs, pred_polys)
+
         # 计算权重 有效 xs 求和得到一个标量 X
         # 有效 xs 按行求和得到一个 tensor
         # 使用 X 逐一除以 tensor 得到新的 tensor

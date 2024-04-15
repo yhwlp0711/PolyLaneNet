@@ -13,7 +13,7 @@ class Evaluator(object):
         # self.predictions = np.zeros((len(dataset.annotations), dataset.max_lanes, 4 + poly_degree))
         self.predictions = None
         self.runtimes = np.zeros(len(dataset))
-        # 每个样本的损失的
+        # 每个样本的损失
         self.loss = np.zeros(len(dataset))
         # 保存实验结果的目录路径
         self.exp_dir = exp_dir
