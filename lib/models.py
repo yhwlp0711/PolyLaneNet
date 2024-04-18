@@ -3,7 +3,6 @@ import torch.nn as nn
 from torchvision.models import resnet34, resnet50, resnet101
 from efficientnet_pytorch import EfficientNet
 
-from .bezier import cal_list
 
 
 class OutputLayer(nn.Module):
